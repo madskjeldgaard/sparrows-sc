@@ -20,10 +20,11 @@ SparrowHQ{
             "Detected the existence of sparrows on startup, restarting all".postln;
 
             // Reset all the sparrows
-            Sparrow.all.do{|s| s.reset };
+            Sparrow.resetAll();
 
             // Restart all the sparrows
-            Sparrow.restartAll;
+            Sparrow.restartAll();
+
         });
 
         // Create a listener, waiting for /whoami messages and then registering the device
@@ -34,7 +35,11 @@ SparrowHQ{
             var ip = addr;
             var oscfuncs = [];
             var sparrow, callbacks;
+            var sparrowExists = Sparrow.all[name].notNil;
 
+            "<<<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>>>>".postln;
+            "A WILD SPARROW APPEARS".postln;
+            "".postln;
             "Received information about a sensor".postln;
             "Name of sensor: ".post; name.postln;
             "IP: ".post; ip.postln;
@@ -45,7 +50,15 @@ SparrowHQ{
             "Port: ".post; port.postln;
 
             // Add sparrow
-            sparrow = Sparrow.add(name, addr, sensorTypes, action: nil);
+            if(sparrowExists.not, {
+                "Adding new sparrow".postln;
+                sparrow = Sparrow.add(name, ip, sensorTypes, action: nil);
+            }, {
+                "Sparrow already exists, updating".postln;
+                sparrow = Sparrow.all[name];
+                sparrow.reset();
+                sparrow.init(name, ip, sensorTypes);
+            });
 
             // Match up the deviceMap
             callbacks = deviceMap[name];
@@ -56,6 +69,8 @@ SparrowHQ{
             };
 
         }, "/whoami");
+
+        "Waiting for sparrows to appear on the network and present themselves with the /whoami message".postln;
 
     }
 

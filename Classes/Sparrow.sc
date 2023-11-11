@@ -57,6 +57,13 @@ Sparrow{
         };
     }
 
+    *resetAll{
+        all.keysValuesDo{|name, sparrow|
+            "Resetting sparrow %".format(name).postln;
+            sparrow.reset();
+        };
+    }
+
     *setDeviceTargetPortAll{|newPort, action|
         all.keysValuesDo{|name, sparrow|
             sparrow.setDeviceTargetPort(newPort, action);
@@ -73,9 +80,7 @@ Sparrow{
     reset{
         callbackFunctions.keysValuesDo{|callbackName, func|
             "Deregistering callback %".format(callbackName).postln;
-            func.disable;
-            func.clear;
-            func.free;
+            func.free();
         };
 
         callbackFunctions = ();
