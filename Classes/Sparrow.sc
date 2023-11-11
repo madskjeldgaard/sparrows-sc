@@ -1,15 +1,10 @@
-/*
+// A sparrow represents one device on the network.
+// It has a name, a network address, and a list of sensors.
+// This class allows keeping track of the state of the device, and registering OSC callback functions to handle the data coming in from it.
 
-A sparrow represents one device on the network.
-
-It has a name, a network address, and a list of sensors.
-
-This class allows keeping track of the state of the device, and registering OSC callback functions to handle the data coming in from it.
-
-*/
 Sparrow{
     classvar <all;
-    classvar <sparrowPort;
+    classvar <sparrowPort = 8888;
     classvar <lifetimeThreshold = 5; // Seconds before a device is considered dead
     classvar lifetimeCheckInterval = 1; // Seconds between life checks
     classvar <postErrorNumTimes = 3; // Number of times to post an error before giving up
@@ -32,18 +27,64 @@ Sparrow{
     }
 
     *initClass{
-        all = IdentityDictionary.new;
+        all = ();
         sparrowPort = NetAddr.langPort;
     }
 
     *add{|name, netaddr, sensors, action|
         var sparrow = Sparrow.new(name, netaddr, sensors, action);
-        all.put(name, sparrow);
+        all.put(name.asSymbol, sparrow);
         ^sparrow;
     }
 
     *remove{|name|
-        all.remove(name);
+        all.remove(name.asSymbol);
+    }
+
+    *pingAll{|action|
+        all.keysValuesDo{|name, sparrow|
+            sparrow.ping({"Pong from %".format(name).postln});
+            if(action.notNil, {
+                action.value(sparrow);
+            })
+        };
+    }
+
+    *restartAll{
+        all.keysValuesDo{|name, sparrow|
+            "Restarting sparrow %".format(name).postln;
+            sparrow.restart();
+        };
+    }
+
+    *setDeviceTargetPortAll{|newPort, action|
+        all.keysValuesDo{|name, sparrow|
+            sparrow.setDeviceTargetPort(newPort, action);
+        };
+    }
+
+    *setDeviceTargetIPAll{|newIPString, action|
+        all.keysValuesDo{|name, sparrow|
+            sparrow.setDeviceTargetIP(newIPString, action);
+        };
+    }
+
+    // Deregister all callbacks
+    reset{
+        callbackFunctions.keysValuesDo{|callbackName, func|
+            "Deregistering callback %".format(callbackName).postln;
+            func.disable;
+            func.clear;
+            func.free;
+        };
+
+        callbackFunctions = ();
+
+        lifeChecker.stop;
+        lifeChecker.free;
+
+        firstPing = true;
+        timeOfLastPing = 0;
     }
 
     init{|deviceName, deviceNetaddr, deviceSensors, action|
@@ -52,12 +93,12 @@ Sparrow{
         sensors = deviceSensors;
         alive = true;
         actionAfterFirstPing = action ? {"Sensor % is alive and OK it seems :)".format(name).postln};
-        callbackFunctions = IdentityDictionary.new;
+        callbackFunctions = ();
         this.prRegisterDefaultCallbacks();
         this.prCreateLifeCheckTask();
-        this.setDeviceTarget(NetAddr.localAddr);
-
-        this.handshake();
+        this.setDeviceTargetPort(Sparrow.sparrowPort, {
+            this.handshake();
+        });
         "Sparrow % added: %".format(name, addr).postln;
     }
 
@@ -76,7 +117,7 @@ Sparrow{
 
                 lifetimeCheckInterval.wait;
             }
-        }).play;
+        });
     }
 
     prRegisterDefaultCallbacks{
@@ -93,22 +134,62 @@ Sparrow{
 
             if(firstPing, {
                 actionAfterFirstPing.value(Date.getDate, addr, recvPort, this);
+                lifeChecker.play;
             });
 
             alive = true;
             firstPing = false;
         };
 
-        this.registerCallback("/awake", signOfLifeFunc);
+        this.registerCallback("/ping", signOfLifeFunc);
     }
 
-    setDeviceTarget{|addr|
-        this.sendMsg(*(["/ip"] ++ addr.ip.splitIP));
-        this.sendMsg("/port", addr.port);
+    prUpdateAllCallbackRecvPorts{
+        callbackFunctions.do{|oscPath, oscFunc|
+            oscFunc.recvPort = sparrowPort;
+        };
+    }
+
+    // FIXME: All callback functions should have their recvPort updated when the device is moved to a new port
+    setDeviceTargetIP{|newIPString, action|
+        this.sendMsg(*(["/ip"] ++ newIPString.splitIP));
+
+        this.registerCallback("/ip", {|msg, time, addr, recvPort|
+            var newIPReceived = msg[1..];
+            "New target IP set for sparrow %: %".format(name, newIPReceived).postln;
+            if(action.notNil, {
+                action.value()
+            });
+        }, oneShot: true);
+    }
+
+    // FIXME: All callback functions should have their recvPort updated when the device is moved to a new port
+    setDeviceTargetPort{|newPort, action|
+        // First check if it is a valid and open port
+        var openPorts = thisProcess.openPorts;
+        if(openPorts.includes(newPort).not, {
+            "Port % is not open".format(newPort).error;
+            ^nil;
+        }, {
+            // Set port
+            this.sendMsg("/port", newPort);
+            this.registerCallback("/port", {|msg, time, addr, recvPort|
+                var newPortReceived = msg[1];
+                "New target port set for sparrow %: %".format(name, newPortReceived).postln;
+                if(action.notNil, {
+                    action.value()
+                });
+            }, oneShot: true);
+
+        })
     }
 
     handshake{
         this.sendMsg("/handshake", true);
+        this.registerCallback("/thanks", {|msg, time, addr, recvPort|
+            "Handshake complete for sparrow %".format(name).postln;
+            "With msg: %".format(msg).postln;
+        }, oneShot: true);
     }
 
     restart{
@@ -117,9 +198,12 @@ Sparrow{
 
     ping{|actionWhenPonged|
         this.sendMsg("/ping");
-        if(actionWhenPonged.notNil, {
-            this.registerCallback("/pong", actionWhenPonged ? {"Received pong".postln;}, oneShot: true);
-        });
+        this.registerCallback("/pong", actionWhenPonged ? {"Received pong".postln;}, oneShot: true);
+    }
+
+    // Turn the ping transmission on the device on/off
+    pingState{|state|
+        this.sendMsg("/pingState", state);
     }
 
     // Register a callback function for a sensor
@@ -138,7 +222,7 @@ Sparrow{
             oscfunc.oneShot();
         }, {
             // Store the callback function so we can remove it later
-            callbackFunctions.put(oscPath, oscfunc);
+            callbackFunctions.put(oscPath.asSymbol, oscfunc);
         });
 
     }
