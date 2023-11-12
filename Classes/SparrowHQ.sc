@@ -10,11 +10,11 @@ This way, when a device is registered, the callbacks are automatically registere
 // Keep track of sparrows
 SparrowHQ{
     var <oscFunc;
-    *new{|deviceMap|
-        ^super.new.init(deviceMap)
+    *new{|deviceMap, action|
+        ^super.new.init(deviceMap, action)
     }
 
-    init{|deviceMap|
+    init{|deviceMap, action|
 
         if((Sparrow.all.size > 0), {
             "Detected the existence of sparrows on startup, restarting all".postln;
@@ -61,12 +61,18 @@ SparrowHQ{
             });
 
             // Match up the deviceMap
-            callbacks = deviceMap[name];
-            if(callbacks.notNil){
-                callbacks.keysValuesDo{|oscPath, actionFunc|
-                    sparrow.registerCallback(oscPath, actionFunc);
-                };
-            };
+            deviceMap.notNil.if({
+                callbacks = deviceMap[name];
+                if(callbacks.notNil){
+                    callbacks.keysValuesDo{|oscPath, actionFunc|
+                        sparrow.registerCallback(oscPath, actionFunc);
+                    };
+                }
+            });
+
+            if(action.notNil, {
+                action.value(sparrow);
+            });
 
         }, "/whoami");
 
