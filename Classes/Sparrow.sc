@@ -211,9 +211,21 @@ Sparrow{
         this.sendMsg("/pingState", state);
     }
 
+    hasCallbackForKey{|key|
+        ^callbackFunctions.keys.asArray.contains(key.asSymbol);
+    }
+
     // Register a callback function for a sensor
     registerCallback{|oscPath, callbackFunction, oneShot=false|
-        var oscfunc = OSCFunc.new(
+        var oscfunc;
+
+        // Check if it already exists
+        if(this.hasCallbackForKey(oscPath), {
+            // Remove the old one
+            callbackFunctions[oscPath.asSymbol].free;
+        });
+
+        oscfunc = OSCFunc.new(
             func:callbackFunction,
             path:oscPath,
             srcID:addr,
@@ -229,7 +241,6 @@ Sparrow{
             // Store the callback function so we can remove it later
             callbackFunctions.put(oscPath.asSymbol, oscfunc);
         });
-
     }
 
     sendMsg{|oscPath ... oscArgs|
