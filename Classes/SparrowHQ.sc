@@ -9,7 +9,7 @@ This way, when a device is registered, the callbacks are automatically registere
 */
 // Keep track of sparrows
 SparrowHQ{
-    var <oscFunc, <>broadcastNetaddr, broadcastRoutine;
+    var <oscFunc, <>broadcastNetaddr, broadcastRoutine, <netAddr;
     *new{|deviceMap, action|
         ^super.new.init(deviceMap, action)
     }
@@ -52,9 +52,9 @@ SparrowHQ{
             // Add sparrow
             if(sparrowExists.not, {
                 "Adding new sparrow".postln;
-                sparrow = Sparrow.add(name, ip, sensorTypes, action: nil);
+                sparrow = Sparrow.add(name: name, netaddr: ip, sensors: sensorTypes, action: nil);
             }, {
-                "Sparrow already exists, updating".postln;
+                "Sparrow already exists".postln;
                 sparrow = Sparrow.all[name];
                 sparrow.reset();
                 sparrow.init(name, ip, sensorTypes);
@@ -79,6 +79,7 @@ SparrowHQ{
         broadcastNetaddr = Platform.case(
             \osx,       {
                 var ip = "ifconfig en0 | awk '$1 == \"inet\" {print $2}'".unixCmdGetStdOut;
+                netAddr = NetAddr.new(ip, Sparrow.sparrowPort);
 
                 // Replace last part of address with .255
                 ip = ip.splitIP;
@@ -102,31 +103,34 @@ SparrowHQ{
     }
 
     callSparrows{
-        this.broadcastEnable("/ping", Sparrow.sparrowPort);
+        var ip = netAddr.ip.splitIP();
+        this.broadcastEnable("/sparrowcall", ip[0], ip[1], ip[2], ip[3], Sparrow.sparrowPort);
     }
 
-    broadcastEnable{|path, message|
+    broadcastEnable{|path ... message|
 
         if(broadcastRoutine.notNil, {
             broadcastRoutine.stop;
         });
 
+        "Broadcasting to all devices on the network".postln;
+        "Path: ".post; path.postln;
+        "Message: ".post; message.postln;
+
         broadcastRoutine = Routine({
             loop{
                 var bf = NetAddr.broadcastFlag;
-                "Broadcasting to all devices on the network".postln;
-                "Path: ".post; path.postln;
-                "Message: ".post; message.postln;
                 NetAddr.broadcastFlag_(true);
-                broadcastNetaddr.sendMsg(path, message);
+                broadcastNetaddr.sendMsg(*([path] ++ message).postln);
                 NetAddr.broadcastFlag_(bf);
-                1.wait;
+                2.wait;
             }
         }).play;
     }
 
     broadcastDisable{|path, message|
         if(broadcastRoutine.notNil, {
+            "Disabling broadcast".postln;
             broadcastRoutine.stop;
         });
     }

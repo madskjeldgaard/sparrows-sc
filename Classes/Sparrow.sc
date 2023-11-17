@@ -102,6 +102,7 @@ Sparrow{
         this.prRegisterDefaultCallbacks();
         this.prCreateLifeCheckTask();
         this.setDeviceTargetPort(Sparrow.sparrowPort, {
+            "Setting target IP for sparrow % to % and shaking hands on it".format(name, Sparrow.sparrowPort).postln;
             this.handshake();
         });
         "Sparrow % added: %".format(name, addr).postln;
@@ -214,6 +215,30 @@ Sparrow{
     hasCallbackForKey{|key|
         ^callbackFunctions.keys.asArray.contains(key.asSymbol);
     }
+
+    disableCallback{|key|
+        if(this.hasCallbackForKey(key), {
+            callbackFunctions[key.asSymbol].disable;
+        });
+    }
+
+    enableCallback{|key|
+        if(this.hasCallbackForKey(key), {
+            callbackFunctions[key.asSymbol].enable;
+        });
+    }
+
+    // tracePath{|path, traceState=true|
+    //     if(traceState, {
+    //         this.registerCallback((path.asString "_trace").asSymbol, {|msg, time, addr, recvPort|
+    //             "Received % from %".format(msg, path).postln;
+    //         });
+
+    //     }, {
+    //         if(hasCallback)
+    //         this.disableCallback((path.asString "_trace").asSymbol);
+    //     })
+    // }
 
     // Register a callback function for a sensor
     registerCallback{|oscPath, callbackFunction, oneShot=false|
