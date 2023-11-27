@@ -10,7 +10,7 @@ This way, when a device is registered, the callbacks are automatically registere
 // Keep track of sparrows
 SparrowHQ{
     var <oscFunc, <>broadcastNetaddr, broadcastRoutine, <netAddr;
-    *new{|deviceMap, action|
+    *new{|deviceMap, action, stopBroadcastingAfter = 180|
         ^super.new.init(deviceMap, action)
     }
 
@@ -102,9 +102,14 @@ SparrowHQ{
 
     }
 
-    callSparrows{
+    callSparrows{|broadcastTime=120|
         var ip = netAddr.ip.splitIP();
         this.broadcastEnable("/sparrowcall", ip[0], ip[1], ip[2], ip[3], Sparrow.sparrowPort);
+        fork{
+            broadcastTime.wait;
+            "Stopping sparrow call broadcast".postln;
+            this.broadcastDisable("/sparrowcall");
+        }
     }
 
     broadcastEnable{|path ... message|
@@ -128,7 +133,7 @@ SparrowHQ{
         }).play;
     }
 
-    broadcastDisable{|path, message|
+    broadcastDisable{|path|
         if(broadcastRoutine.notNil, {
             "Disabling broadcast".postln;
             broadcastRoutine.stop;

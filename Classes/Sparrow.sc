@@ -2,12 +2,16 @@
 // It has a name, a network address, and a list of sensors.
 // This class allows keeping track of the state of the device, and registering OSC callback functions to handle the data coming in from it.
 
+
+// TODO:
+// - lifeChecker not working
 Sparrow{
     classvar <all;
     classvar <sparrowPort = 8888;
     classvar <lifetimeThreshold = 5; // Seconds before a device is considered dead
     classvar lifetimeCheckInterval = 1; // Seconds between life checks
     classvar <postErrorNumTimes = 3; // Number of times to post an error before giving up
+    classvar <basePath;
 
     var <>alive = false;
     var <>name = "";
@@ -17,6 +21,7 @@ Sparrow{
     var <lifeChecker;
     var <timeOfLastPing=0;
     var <actionAfterFirstPing;
+    var <data;
 
     var numErrorsPosted = 0;
     var firstPing = true;
@@ -29,6 +34,14 @@ Sparrow{
     *initClass{
         all = ();
         sparrowPort = NetAddr.langPort;
+
+        basePath = PathName(Platform.userAppSupportDir) +/+ "sparrows";
+
+        // Make a sparrow directory if it doesn't exist
+        if(basePath.isFolder.not, {
+            "Creating sparrow directory at %".format(basePath).postln;
+            basePath.fullPath.mkdir;
+        });
     }
 
     *add{|name, netaddr, sensors, action|
@@ -94,6 +107,7 @@ Sparrow{
 
     init{|deviceName, deviceNetaddr, deviceSensors, action|
         name = deviceName;
+        data = ();
         addr = deviceNetaddr;
         sensors = deviceSensors;
         alive = true;
@@ -111,12 +125,13 @@ Sparrow{
     // Create a task that checks if the device is still alive
     prCreateLifeCheckTask{
         lifeChecker = Task({
+            "Starting life checker for sparrow %".format(name).postln;
             loop{
                 var now = Date.getDate.rawSeconds;
                 if(now - timeOfLastPing > lifetimeThreshold){
                     alive = false;
                     if(numErrorsPosted < Sparrow.postErrorNumTimes){
-                        "%: Sparrow % is dead".format(Date.getDate.stamp, name).error;
+                        SparrowLog.error(this, "Sparrow % is dead".format(name));
                         numErrorsPosted = numErrorsPosted + 1;
                     }
                 };
@@ -136,10 +151,12 @@ Sparrow{
 
             if(alive.not, {
                 "%: Sparrow % is alive again".format(Date.getDate.stamp, name).postln;
+                SparrowLog.info(this, "Sparrow % is alive again".format(name));
             });
 
             if(firstPing, {
                 actionAfterFirstPing.value(Date.getDate, addr, recvPort, this);
+                SparrowLog.info(this, "First ping received, Sparrow % is alive and OK it seems :)".format(name));
                 lifeChecker.play;
             });
 
@@ -147,13 +164,41 @@ Sparrow{
             firstPing = false;
         };
 
-        this.registerCallback("/ping", signOfLifeFunc);
+        var errorLogCallback = {|msg, time, addr, recvPort|
+            SparrowLog.error(msg[1..]);
+        };
+
+        var warningLogCallback = {|msg, time, addr, recvPort|
+            SparrowLog.warning(msg[1..]);
+        };
+
+        var infoLogCallback = {|msg, time, addr, recvPort|
+            SparrowLog.info(msg[1..]);
+        };
+
+        this.registerCallback("/log/error", errorLogCallback);
+        this.registerCallback("/log/warning", warningLogCallback);
+        this.registerCallback("/log/info", infoLogCallback);
+        this.registerCallback("/tweettweet", signOfLifeFunc);
     }
 
     prUpdateAllCallbackRecvPorts{
         callbackFunctions.do{|oscPath, oscFunc|
             oscFunc.recvPort = sparrowPort;
         };
+    }
+
+    addState{|key, initialValue, func|
+        data[key] = SimpleState.new(initialValue, func);
+    }
+
+    state{|key|
+        ^if(data[key].notNil, {
+            data[key]
+        }, {
+            SparrowLog.error(this, "State does not exist for key % in sparrow %".format(key, name));
+            nil;
+        })
     }
 
     // FIXME: All callback functions should have their recvPort updated when the device is moved to a new port
@@ -174,14 +219,14 @@ Sparrow{
         // First check if it is a valid and open port
         var openPorts = thisProcess.openPorts;
         if(openPorts.includes(newPort).not, {
-            "Port % is not open".format(newPort).error;
+            SparrowLog.error(this, "Port % is not open".format(newPort));
             ^nil;
         }, {
             // Set port
             this.sendMsg("/port", newPort);
             this.registerCallback("/port", {|msg, time, addr, recvPort|
                 var newPortReceived = msg[1];
-                "New target port set for sparrow %: %".format(name, newPortReceived).postln;
+                SparrowLog.info(this, "New target port set for sparrow %: %".format(name, newPortReceived));
                 if(action.notNil, {
                     action.value()
                 });
@@ -193,12 +238,12 @@ Sparrow{
     handshake{
         this.sendMsg("/handshake", true);
         this.registerCallback("/thanks", {|msg, time, addr, recvPort|
-            "Handshake complete for sparrow %".format(name).postln;
-            "With msg: %".format(msg).postln;
+            SparrowLog.info(this, "Handshake complete for sparrow %".format(name));
         }, oneShot: true);
     }
 
     restart{
+        SparrowLog.info(this, "Restarting sparrow %".format(name));
         this.sendMsg("/restart");
     }
 
@@ -250,6 +295,7 @@ Sparrow{
             callbackFunctions[oscPath.asSymbol].free;
         });
 
+        // TODO: Pass sparrow instance to osc func callback
         oscfunc = OSCFunc.new(
             func:callbackFunction,
             path:oscPath,
