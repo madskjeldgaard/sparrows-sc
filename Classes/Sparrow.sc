@@ -165,15 +165,15 @@ Sparrow{
         };
 
         var errorLogCallback = {|msg, time, addr, recvPort|
-            SparrowLog.error(msg[1..]);
+            SparrowLog.error(this, msg[1..]);
         };
 
         var warningLogCallback = {|msg, time, addr, recvPort|
-            SparrowLog.warning(msg[1..]);
+            SparrowLog.warning(this, msg[1..]);
         };
 
         var infoLogCallback = {|msg, time, addr, recvPort|
-            SparrowLog.info(msg[1..]);
+            SparrowLog.info(this, msg[1..]);
         };
 
         this.registerCallback("/log/error", errorLogCallback);
