@@ -4,7 +4,7 @@ SparrowLog{
     classvar <basePath;
 
     // Default max log size is 128 MB
-    classvar <>maxLogSizeBytes = 128 * 1024 * 1024;
+    classvar <>maxLogSizeBytes = 134217728;
 
     *initClass{
         // Init after Sparrow
@@ -14,7 +14,7 @@ SparrowLog{
 
         // Check size of log file
         if(this.fileSize > this.maxLogSizeBytes,{
-            "Log file too big, truncating...".error;
+            "SparrowLog log file too big ...".error;
         });
 
         // Create log file if not exists
@@ -36,7 +36,6 @@ SparrowLog{
 
     *writeString{|string|
         logFile.isOpen.not.if{
-            "Log file not open, opening...".postln;
             logFile = File.open(logFilePath.fullPath, "a+");
         };
 
@@ -50,7 +49,8 @@ SparrowLog{
     // logLevel is a symbol: either 'info', 'error' or 'warning'
     *log{|sparrowInstance, logLevel='info', message|
         var now = Date.getDate;
-        var string = "[%][%][%]: %".format(logLevel.asString.toUpper, now, sparrowInstance.name, message);
+        var name = if(sparrowInstance.isNil, { "GLOBAL" }, {sparrowInstance.name});
+        var string = "[%] %: %, %".format(now, name, logLevel.asString.toUpper, message);
 
         this.writeString(string);
 
