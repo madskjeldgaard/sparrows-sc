@@ -2,9 +2,6 @@
 // It has a name, a network address, and a list of sensors.
 // This class allows keeping track of the state of the device, and registering OSC callback functions to handle the data coming in from it.
 
-
-// TODO:
-// - lifeChecker not working
 Sparrow{
     classvar <all;
     classvar <sparrowPort = 8888;
@@ -47,11 +44,14 @@ Sparrow{
     *add{|name, netaddr, sensors, action|
         var sparrow = Sparrow.new(name, netaddr, sensors, action);
         all.put(name.asSymbol, sparrow);
+        this.changed("add", name);
+        all.changed("add", name);
         ^sparrow;
     }
 
     *remove{|name|
         all.remove(name.asSymbol);
+        this.changed("remove", name);
     }
 
     *pingAll{|action|
@@ -103,6 +103,8 @@ Sparrow{
 
         firstPing = true;
         timeOfLastPing = 0;
+
+        this.changed("reset", name);
     }
 
     init{|deviceName, deviceNetaddr, deviceSensors, action|
@@ -128,8 +130,9 @@ Sparrow{
             "Starting life checker for sparrow %".format(name).postln;
             loop{
                 var now = Date.getDate.rawSeconds;
-                if(now - timeOfLastPing > lifetimeThreshold){
+                if((now - timeOfLastPing) > lifetimeThreshold){
                     alive = false;
+                    this.changed("dead", name);
                     if(numErrorsPosted < Sparrow.postErrorNumTimes){
                         SparrowLog.error(this, "Sparrow % is dead".format(name));
                         numErrorsPosted = numErrorsPosted + 1;
@@ -160,6 +163,7 @@ Sparrow{
                 lifeChecker.play;
             });
 
+            this.changed("alive", name);
             alive = true;
             firstPing = false;
         };
@@ -211,6 +215,8 @@ Sparrow{
             if(action.notNil, {
                 action.value()
             });
+
+            this.changed("ip", newIPReceived);
         }, oneShot: true);
     }
 
@@ -230,6 +236,8 @@ Sparrow{
                 if(action.notNil, {
                     action.value()
                 });
+
+                this.changed("port", newPortReceived);
             }, oneShot: true);
 
         })
@@ -239,6 +247,7 @@ Sparrow{
         this.sendMsg("/handshake", true);
         this.registerCallback("/thanks", {|msg, time, addr, recvPort|
             SparrowLog.info(this, "Handshake complete for sparrow %".format(name));
+            this.changed("handshake", name);
         }, oneShot: true);
     }
 
