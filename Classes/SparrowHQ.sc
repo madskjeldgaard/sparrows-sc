@@ -74,6 +74,8 @@ SparrowHQ{
                 action.value(sparrow);
             });
 
+            this.changed(this, sparrow);
+
         }, "/whoami");
 
         broadcastNetaddr = Platform.case(
