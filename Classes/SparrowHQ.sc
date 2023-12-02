@@ -7,14 +7,14 @@ It takes a "deviceMap" as an argument, this is a dictionary of deviceID->(oscPat
 This way, when a device is registered, the callbacks are automatically registered and then called when the device sends a message.
 
 */
-// Keep track of sparrows
 SparrowHQ{
     var <oscFunc, <>broadcastNetaddr, broadcastRoutine, <netAddr;
-    *new{|deviceMap, action, stopBroadcastingAfter = 180|
-        ^super.new.init(deviceMap, action)
+
+    *new{|deviceMap, action, stopBroadcastingAfter = inf|
+        ^super.new.init(deviceMap, action, stopBroadcastingAfter)
     }
 
-    init{|deviceMap, action|
+    init{|deviceMap, action, stopBroadcastingAfter|
 
         if((Sparrow.all.size > 0), {
             "Detected the existence of sparrows on startup, restarting all".postln;
@@ -100,7 +100,7 @@ SparrowHQ{
         );
 
         "Waiting for sparrows to appear on the network and present themselves with the /whoami message".postln;
-        this.callSparrows();
+        this.callSparrows(broadcastTime: stopBroadcastingAfter);
 
     }
 
@@ -109,9 +109,20 @@ SparrowHQ{
         this.broadcastEnable("/sparrowcall", ip[0], ip[1], ip[2], ip[3], Sparrow.sparrowPort);
         fork{
             broadcastTime.wait;
-            "Stopping sparrow call broadcast".postln;
+            SparrowLog.info(message:"Stopping sparrow call broadcast");
             this.broadcastDisable("/sparrowcall");
         }
+    }
+
+    broadcastRestart{
+        this.broadcastMessage("/restart");
+    }
+
+    broadcastMessage{|path, message|
+        var bf = NetAddr.broadcastFlag;
+        NetAddr.broadcastFlag_(true);
+        broadcastNetaddr.sendMsg(*([path] ++ message));
+        NetAddr.broadcastFlag_(bf);
     }
 
     broadcastEnable{|path ... message|
@@ -123,13 +134,13 @@ SparrowHQ{
         "Broadcasting to all devices on the network".postln;
         "Path: ".post; path.postln;
         "Message: ".post; message.postln;
+        "Broadcast IP: ".post; broadcastNetaddr.postln;
 
         broadcastRoutine = Routine({
+            SparrowLog.info(message:"Broadcasting to all devices on the network: %, %".format(path, message));
+
             loop{
-                var bf = NetAddr.broadcastFlag;
-                NetAddr.broadcastFlag_(true);
-                broadcastNetaddr.sendMsg(*([path] ++ message).postln);
-                NetAddr.broadcastFlag_(bf);
+                this.broadcastMessage(path, message);
                 2.wait;
             }
         }).play;
@@ -138,6 +149,7 @@ SparrowHQ{
     broadcastDisable{|path|
         if(broadcastRoutine.notNil, {
             "Disabling broadcast".postln;
+            SparrowLog.info(message:"Disabling broadcast to all devices on the network: %".format(path));
             broadcastRoutine.stop;
         });
     }
