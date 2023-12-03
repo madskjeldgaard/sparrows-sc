@@ -194,6 +194,11 @@ Sparrow{
         this.registerCallback("/log/info", infoLogCallback);
         this.registerCallback("/tweettweet", signOfLifeFunc);
         this.registerCallback("/ping", signOfLifeFunc);
+        this.registerCallback("/version", {|msg, time, addr, recvPort|
+            var version = msg[1];
+            SparrowLog.info(this, "version: %".format(version));
+            this.changed("version", version);
+        }, oneShot: true);
     }
 
     prUpdateAllCallbackRecvPorts{
