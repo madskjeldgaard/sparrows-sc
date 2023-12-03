@@ -2,19 +2,17 @@
 
 This class is used to keep track of sparrows, mainly by listening to the /whoami messages coming in from them.
 
-It takes a "deviceMap" as an argument, this is a dictionary of deviceID->(oscPath: actionFunc, oscPath: actionFunc, etc.)
-
 This way, when a device is registered, the callbacks are automatically registered and then called when the device sends a message.
 
 */
 SparrowHQ{
     var <oscFunc, <>broadcastNetaddr, broadcastRoutine, <netAddr;
 
-    *new{|deviceMap, action, stopBroadcastingAfter = inf|
-        ^super.new.init(deviceMap, action, stopBroadcastingAfter)
+    *new{|action, stopBroadcastingAfter = inf|
+        ^super.new.init(action, stopBroadcastingAfter)
     }
 
-    init{|deviceMap, action, stopBroadcastingAfter|
+    init{|action, stopBroadcastingAfter|
 
         if((Sparrow.all.size > 0), {
             "Detected the existence of sparrows on startup, restarting all".postln;
@@ -60,16 +58,6 @@ SparrowHQ{
                 sparrow.init(name, ip, sensorTypes);
             });
 
-            // Match up the deviceMap
-            deviceMap.notNil.if({
-                callbacks = deviceMap[name];
-                if(callbacks.notNil){
-                    callbacks.keysValuesDo{|oscPath, actionFunc|
-                        sparrow.registerCallback(oscPath, actionFunc);
-                    };
-                }
-            });
-
             if(action.notNil, {
                 action.value(sparrow);
             });
@@ -102,6 +90,13 @@ SparrowHQ{
         "Waiting for sparrows to appear on the network and present themselves with the /whoami message".postln;
         this.callSparrows(broadcastTime: stopBroadcastingAfter);
 
+        CmdPeriodDef(\sparrowLog, {
+            SparrowLog.warning(message:"Cmd period called by user");
+        });
+
+        CmdPeriodDef(\stopBroadcasting, {
+            this.broadcastDisable("/sparrowcall");
+        });
     }
 
     callSparrows{|broadcastTime=120|
