@@ -2,6 +2,8 @@
 
 This package contains an interface for the [Sparrow devices](https://github.com/madskjeldgaard/Sparrows), a series of networked sensor devices that communicate via OSC over WiFi.
 
+## Features
+
 The SuperCollider interface provides:
 
 - A Sparrow headquarters for controlling a network of sensors

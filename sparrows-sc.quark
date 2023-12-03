@@ -3,7 +3,7 @@
   summary: "Interface for the Sparrow devices",
   version: "0.0.1",
   schelp: "Sparrows.schelp",
-  dependencies: nil,
+  dependencies: ["https://github.com/madskjeldgaard/Monolithic"],
   license: "GNU GPL v3.0",
   copyright: "madskjeldgaard",
   ext_dependency: nil,
