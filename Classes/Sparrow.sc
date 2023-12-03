@@ -147,7 +147,7 @@ Sparrow{
     prRegisterDefaultCallbacks{
         // Sign of life received
         var signOfLifeFunc = {|msg, time, addr, recvPort|
-            var name = msg[1];
+            // var name = msg[1];
             var ip = addr;
             timeOfLastPing = Date.getDate.rawSeconds;
             numErrorsPosted = 0;
@@ -168,6 +168,15 @@ Sparrow{
             firstPing = false;
         };
 
+        // Resets the last ping time
+        // var pingCallback = {|msg, time, addr, recvPort|
+        //     timeOfLastPing = Date.getDate.rawSeconds;
+        //     alive = true;
+        //     this.changed("alive", name);
+        //     this.sendMsg("/pong");
+        //     SparrowLog.info(this, "Received ping from sparrow %".format(name));
+        // };
+
         var errorLogCallback = {|msg, time, addr, recvPort|
             SparrowLog.error(this, msg[1..]);
         };
@@ -184,6 +193,7 @@ Sparrow{
         this.registerCallback("/log/warning", warningLogCallback);
         this.registerCallback("/log/info", infoLogCallback);
         this.registerCallback("/tweettweet", signOfLifeFunc);
+        this.registerCallback("/ping", signOfLifeFunc);
     }
 
     prUpdateAllCallbackRecvPorts{
