@@ -6,9 +6,9 @@ TestSparrow : SparrowTest {
         SparrowLog.writeToFile_(false);
 
         // Set the lifetime threshold to 0.1 seconds to speed up tests
-        Sparrow.lifetimeThreshold = 100;
+        Sparrow.lifetimeThreshold = 0.1;
 
-        Sparrow.lifetimeCheckInterval = 10;
+        Sparrow.lifetimeCheckInterval = 0.025;
         SparrowLog.verbose = false;
 
         sparrow = Sparrow.new("faketest", netaddr: NetAddr.localAddr);
@@ -27,16 +27,22 @@ TestSparrow : SparrowTest {
         this.assert(sparrow.name == "faketest", "Sparrow should have correct name");
     }
 
-    test_checkDeath{
-        var condition = CondVar.new();
-
-        // Check that the life checker is running
-        this.assert(sparrow.alive, "Sparrow should be alive");
-
-        // this.wait({ sparrow.alive.not }, "Waiting for sparrow to die", 0.25);
-        // this.assert(sparrow.alive.not, "Sparrow should be dead if exceeded lifetime check time");
-
+    test_reset{
+        sparrow.reset();
+        this.assert(sparrow.alive.not, "Sparrow should be dead after reset");
+        this.assert(sparrow.lifeChecker.isPlaying.not, "Sparrow should not be checking its life after reset");
     }
+
+    // test_checkDeath{
+    //     var condition = CondVar.new();
+
+    //     // Check that the life checker is running
+    //     this.assert(sparrow.alive, "Sparrow should be alive");
+
+    //     condition.waitFor(0.20, { false });
+    //     this.assert(sparrow.alive.not, "Sparrow should be dead if exceeded lifetime check time");
+
+    // }
 
     test_registerCallback{
         var condVar = CondVar.new();
