@@ -3,10 +3,12 @@
 // This class allows keeping track of the state of the device, and registering OSC callback functions to handle the data coming in from it.
 
 Sparrow{
+    classvar <minSupportedVersion = "0.0.2";
+
     classvar <all;
     classvar <sparrowPort = 8888;
-    classvar <lifetimeThreshold = 5; // Seconds before a device is considered dead
-    classvar lifetimeCheckInterval = 1; // Seconds between life checks
+    classvar <>lifetimeThreshold = 5; // Seconds before a device is considered dead
+    classvar <>lifetimeCheckInterval = 1; // Seconds between life checks
     classvar <postErrorNumTimes = 3; // Number of times to post an error before giving up
     classvar <basePath;
 
@@ -204,6 +206,9 @@ Sparrow{
         this.registerCallback("/version", {|msg, time, addr, recvPort|
             var version = msg[1];
             SparrowLog.info(this, "version: %".format(version));
+            if(version < Sparrow.minSupportedVersion, {
+                SparrowLog.error(this, "Sparrow % is running an old version (%), please update to at least % and restart it".format(name, version, Sparrow.minSupportedVersion));
+            });
             this.changed("version", version);
         }, oneShot: true);
     }

@@ -1,4 +1,6 @@
 SparrowLog{
+    classvar <>verbose=true; // Post to console
+    classvar <>writeToFile=true; // May be disabled for testing purposes
     classvar <logFile;
     classvar <logFilePath;
     classvar <basePath;
@@ -47,31 +49,35 @@ SparrowLog{
     // Log message to file
     // sparrowInstance is an instance of Sparrow
     // logLevel is a symbol: either 'info', 'error' or 'warning'
-    *log{|sparrowInstance, logLevel='info', message|
+    *log{|sparrowInstance, logLevel='info', message, writeToFile = true|
         var now = Date.getDate;
         var name = if(sparrowInstance.isNil, { "GLOBAL" }, {sparrowInstance.name});
         var string = "[%] %: %, %".format(now, name, logLevel.asString.toUpper, message);
 
-        this.writeString(string);
+        if(writeToFile, {
+            this.writeString(string);
+        });
 
-        switch(logLevel,
-            'info', { string.postln },
-            'error', { string.error },
-            'warning', { string.warn },
-            'warn', { string.warn },
-        );
+        verbose.if({
+            switch(logLevel,
+                'info', { string.postln },
+                'error', { string.error },
+                'warning', { string.warn },
+                'warn', { string.warn },
+            )
+        })
     }
 
-    *error{|sparrowInstance, message|
-        this.log(sparrowInstance, 'error', message);
+    *error{|sparrowInstance, message, writeToFile=true|
+        this.log(sparrowInstance, 'error', message, writeToFile: writeToFile);
     }
 
-    *info{|sparrowInstance, message|
-        this.log(sparrowInstance, 'info', message);
+    *info{|sparrowInstance, message, writeToFile=true|
+        this.log(sparrowInstance, 'info', message, writeToFile: writeToFile);
     }
 
-    *warning{|sparrowInstance, message|
-        this.log(sparrowInstance, 'warning', message);
+    *warning{|sparrowInstance, message, writeToFile=true|
+        this.log(sparrowInstance, 'warning', message, writeToFile: writeToFile);
     }
 
     // File size in bytes
@@ -90,7 +96,4 @@ SparrowLog{
     *openNvim{
         NvimOpen.openTab(logFilePath.fullPath);
     }
-
-
-
 }

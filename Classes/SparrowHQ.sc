@@ -148,4 +148,13 @@ SparrowHQ{
             broadcastRoutine.stop;
         });
     }
+
+    reset{
+        oscFunc.free;
+        oscFunc = nil;
+        broadcastRoutine.isNil.not.if({
+            broadcastRoutine.stop;
+            broadcastRoutine = nil;
+        })
+    }
 }
