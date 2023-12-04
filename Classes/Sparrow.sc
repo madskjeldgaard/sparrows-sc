@@ -50,7 +50,14 @@ Sparrow{
     }
 
     *remove{|name|
+
+        // Reset the sparrow
+        all[name.asSymbol].reset;
+
+        // Remove the sparrow from the list
         all.remove(name.asSymbol);
+
+        // Remove the sparrow file
         this.changed("remove", name);
     }
 
