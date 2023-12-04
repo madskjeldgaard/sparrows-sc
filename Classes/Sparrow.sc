@@ -38,7 +38,7 @@ Sparrow{
 
         // Make a sparrow directory if it doesn't exist
         if(basePath.isFolder.not, {
-            "Creating sparrow directory at %".format(basePath).postln;
+            SparrowLog.info("Creating sparrow directory at %".format(basePath));
             basePath.fullPath.mkdir;
         });
     }
@@ -74,14 +74,12 @@ Sparrow{
 
     *restartAll{
         all.keysValuesDo{|name, sparrow|
-            "Restarting sparrow %".format(name).postln;
             sparrow.restart();
         };
     }
 
     *resetAll{
         all.keysValuesDo{|name, sparrow|
-            "Resetting sparrow %".format(name).postln;
             sparrow.reset();
         };
     }
@@ -101,7 +99,7 @@ Sparrow{
     // Deregister all callbacks
     reset{
         callbackFunctions.keysValuesDo{|callbackName, func|
-            "Deregistering callback %".format(callbackName).postln;
+            SparrowLog.info(this, "Deregistering callback %".format(callbackName));
             func.free();
         };
 
@@ -112,6 +110,7 @@ Sparrow{
 
         firstPing = true;
         timeOfLastPing = 0;
+        alive = false;
 
         this.changed("reset", name);
     }
@@ -127,16 +126,17 @@ Sparrow{
         this.prRegisterDefaultCallbacks();
         this.prCreateLifeCheckTask();
         this.setDeviceTargetPort(Sparrow.sparrowPort, {
-            "Setting target IP for sparrow % to % and shaking hands on it".format(name, Sparrow.sparrowPort).postln;
+            SparrowLog.info(this, "Setting target IP for sparrow % to % and shaking hands on it".format(name, Sparrow.sparrowPort));
             this.handshake();
         });
-        "Sparrow % added: %".format(name, addr).postln;
+        SparrowLog.info(this, "Sparrow % created: %".format(name, addr));
+        this.changed("init", name);
     }
 
     // Create a task that checks if the device is still alive
     prCreateLifeCheckTask{
         lifeChecker = Task({
-            "Starting life checker for sparrow %".format(name).postln;
+            SparrowLog.info(this, "Starting life checker for sparrow %".format(name));
             loop{
                 var now = Date.getDate.rawSeconds;
                 if((now - timeOfLastPing) > lifetimeThreshold){
@@ -162,7 +162,6 @@ Sparrow{
             numErrorsPosted = 0;
 
             if(alive.not, {
-                "%: Sparrow % is alive again".format(Date.getDate.stamp, name).postln;
                 SparrowLog.info(this, "Sparrow % is alive again".format(name));
             });
 
@@ -238,7 +237,7 @@ Sparrow{
 
         this.registerCallback("/ip", {|msg, time, addr, recvPort|
             var newIPReceived = msg[1..];
-            "New target IP set for sparrow %: %".format(name, newIPReceived).postln;
+            SparrowLog.info(this, "New target IP set for sparrow %: %".format(name, newIPReceived));
             if(action.notNil, {
                 action.value()
             });
@@ -285,7 +284,9 @@ Sparrow{
 
     ping{|actionWhenPonged|
         this.sendMsg("/ping");
-        this.registerCallback("/pong", actionWhenPonged ? {"Received pong".postln;}, oneShot: true);
+        this.registerCallback("/pong", actionWhenPonged ? {
+            SparrowLog.info(this, "Received pong from sparrow %".format(name));
+        }, oneShot: true);
     }
 
     // Turn the ping transmission on the device on/off
