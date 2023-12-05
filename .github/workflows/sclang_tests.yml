@@ -1,0 +1,19 @@
+# This github action runs the docker container docker run -it capitalg/supercollider:3.12 with the file .github/scripts/run_tests.scd
+
+name: sclang_tests
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+
+      # Check out
+      - uses: actions/checkout@v3
+
+      # Pull docker image
+      - name: Pull docker image
+        run: docker pull capitalg/supercollider:3.12
+
+      # docker run -v "$PWD:$PWD" -w "$PWD"  -it capitalg/supercollider:3.12 sclang .github/scripts/run_tests.scd
+      - name: Run tests
+        run: docker run -v "$PWD:$PWD" -w "$PWD" capitalg/supercollider:3.12 /bin/sh -c "sclang .github/scripts/install_quarks.scd && sclang .github/scripts/run_tests.scd"
