@@ -1,3 +1,5 @@
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/X8X6RXV10)
+
 # Sparrows-SC
 
 This package contains an interface for the [Sparrow devices](https://github.com/madskjeldgaard/Sparrows), a series of networked sensor devices that communicate via OSC over WiFi.
